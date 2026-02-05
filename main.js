@@ -4,7 +4,7 @@ let tempo = tempoPadrao;
 let pontos = 0;
 let maiorPontuacao = 0;
 let jaPerdeu = false;
-let jogoIniciado = false; // NOVO: Controla se o jogo já começou
+let jogoIniciado = false;
 
 let palavras = [];
 let palavraOriginal = '';
@@ -17,8 +17,8 @@ let peer = null;
 let connection = null;
 let meuPeerId = '';
 let oponenteScore = 0;
-let minhasVitorias = 0; // NOVO: Contador de vitórias
-let vitoriasOponente = 0; // NOVO: Contador de vitórias do oponente
+let minhasVitorias = 0;
+let vitoriasOponente = 0;
 const PONTOS_VITORIA = 20;
 
 // Timer
@@ -89,7 +89,6 @@ function voltarParaModo() {
     document.getElementById('tela-multiplayer').style.display = 'none';
     document.getElementById('tela-modo').style.display = 'block';
 
-    // Resetar scores ao sair do modo multiplayer
     minhasVitorias = 0;
     vitoriasOponente = 0;
 
@@ -210,14 +209,14 @@ function configurarConexao() {
             if (nivelAtual !== data.level) {
                 selecionarNivel(data.level, false);
             }
-        } else if (data.type === 'perdeu') { // NOVO: Oponente perdeu por tempo
+        } else if (data.type === 'perdeu') {
             minhasVitorias++;
             atualizarPlacarVitorias();
             mostrarVencedorPorDesistencia(true);
-        } else if (data.type === 'vitorias') { // NOVO: Atualizar score de vitórias
+        } else if (data.type === 'vitorias') {
             vitoriasOponente = data.vitorias;
             atualizarPlacarVitorias();
-        } else if (data.type === 'reiniciar') { // NOVO: Reiniciar partida
+        } else if (data.type === 'reiniciar') {
             reiniciarPartida();
         }
     });
@@ -272,127 +271,94 @@ function atualizarPlacarVitorias() {
 
 function mostrarVencedor(euVenci) {
     pararTimer();
-    const winnerBanner = document.getElementById('winner-banner');
-    const winnerText = document.getElementById('winner-text');
 
     if (euVenci) {
-        winnerText.textContent = '🎉 Você Venceu! 🎉';
-        winnerText.style.color = '#48bb78';
         minhasVitorias++;
     } else {
-        winnerText.textContent = '😔 Você Perdeu';
-        winnerText.style.color = '#f56565';
         vitoriasOponente++;
     }
 
     atualizarPlacarVitorias();
     enviarVitorias();
 
-    winnerBanner.classList.add('show');
-    inputPalavra.disabled = true;
-
-    // NOVO: Mostrar botão de reiniciar em vez de voltar automaticamente
-    setTimeout(() => {
-        winnerBanner.classList.remove('show');
-        mostrarTelaReiniciar();
-    }, 3000);
+    mostrarModalFimPartida(euVenci ? 'Você Venceu!' : 'Você Perdeu!', euVenci);
 }
 
 function mostrarVencedorPorDesistencia(euVenci) {
     pararTimer();
-    const winnerBanner = document.getElementById('winner-banner');
-    const winnerText = document.getElementById('winner-text');
 
-    if (euVenci) {
-        winnerText.textContent = '🎉 Você Venceu! Oponente perdeu o foco! 🎉';
-        winnerText.style.color = '#48bb78';
-    } else {
-        winnerText.textContent = '😔 Você Perdeu o Foco!';
-        winnerText.style.color = '#f56565';
+    if (euVenci && minhasVitorias === parseInt(document.getElementById('my-wins') ? .textContent || 0)) {
+        minhasVitorias++;
     }
 
-    winnerBanner.classList.add('show');
-    inputPalavra.disabled = true;
+    atualizarPlacarVitorias();
 
-    setTimeout(() => {
-        winnerBanner.classList.remove('show');
-        mostrarTelaReiniciar();
-    }, 3000);
+    const mensagem = euVenci ? 'Você Venceu! Oponente perdeu o foco!' : 'Você Perdeu o Foco!';
+    mostrarModalFimPartida(mensagem, euVenci);
 }
 
-function mostrarTelaReiniciar() {
-    // Criar ou mostrar tela de reiniciar
-    let telaReiniciar = document.getElementById('tela-reiniciar');
+function mostrarModalFimPartida(mensagem, euVenci) {
+    const modalTitulo = document.getElementById('modal-titulo');
+    const modalMensagem = document.getElementById('modal-mensagem');
+    const modalMyWins = document.getElementById('modal-my-wins');
+    const modalOpponentWins = document.getElementById('modal-opponent-wins');
 
-    if (!telaReiniciar) {
-        telaReiniciar = document.createElement('div');
-        telaReiniciar.id = 'tela-reiniciar';
-        telaReiniciar.className = 'container text-center';
-        telaReiniciar.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; display: flex; flex-direction: column; justify-content: center; align-items: center;';
+    if (modalTitulo) {
+        modalTitulo.textContent = euVenci ? '🎉 Você Venceu!' : '😔 Você Perdeu';
+        modalTitulo.className = euVenci ? 'modal-title w-100 text-center text-success' : 'modal-title w-100 text-center text-danger';
+    }
 
-        telaReiniciar.innerHTML = `
-            <h2 class="mb-4">Partida Encerrada</h2>
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="player-card me">
-                        <h4>🎮 Você</h4>
-                        <h3>Vitórias: <span id="my-wins-display">${minhasVitorias}</span></h3>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="player-card opponent">
-                        <h4>👤 Oponente</h4>
-                        <h3>Vitórias: <span id="opponent-wins-display">${vitoriasOponente}</span></h3>
-                    </div>
-                </div>
-            </div>
-            <button class="btn btn-success btn-lg m-2" id="btn-nova-partida">🔄 Nova Partida</button>
-            <button class="btn btn-secondary btn-lg m-2" id="btn-voltar-menu">📋 Menu Principal</button>
-        `;
+    if (modalMensagem) modalMensagem.textContent = mensagem;
+    if (modalMyWins) modalMyWins.textContent = minhasVitorias;
+    if (modalOpponentWins) modalOpponentWins.textContent = vitoriasOponente;
 
-        document.body.appendChild(telaReiniciar);
+    const btnNovaPartida = document.getElementById('btn-nova-partida-modal');
+    const btnVoltarMenu = document.getElementById('btn-voltar-menu-modal');
 
-        document.getElementById('btn-nova-partida').addEventListener('click', () => {
+    if (btnNovaPartida) {
+        const novoBtnNova = btnNovaPartida.cloneNode(true);
+        btnNovaPartida.parentNode.replaceChild(novoBtnNova, btnNovaPartida);
+        novoBtnNova.addEventListener('click', () => {
+            $('#modal-fim-partida').modal('hide');
             enviarReiniciar();
             reiniciarPartida();
         });
+    }
 
-        document.getElementById('btn-voltar-menu').addEventListener('click', () => {
-            telaReiniciar.style.display = 'none';
+    if (btnVoltarMenu) {
+        const novoBtnVoltar = btnVoltarMenu.cloneNode(true);
+        btnVoltarMenu.parentNode.replaceChild(novoBtnVoltar, btnVoltarMenu);
+        novoBtnVoltar.addEventListener('click', () => {
+            $('#modal-fim-partida').modal('hide');
             voltarParaSelecaoNivel();
             voltarParaModo();
         });
-    } else {
-        telaReiniciar.style.display = 'flex';
-        document.getElementById('my-wins-display').textContent = minhasVitorias;
-        document.getElementById('opponent-wins-display').textContent = vitoriasOponente;
     }
 
-    document.getElementById('tela-jogo').style.display = 'none';
+    $('#modal-fim-partida').modal('show');
+    inputPalavra.disabled = true;
 }
 
 function reiniciarPartida() {
-    const telaReiniciar = document.getElementById('tela-reiniciar');
-    if (telaReiniciar) {
-        telaReiniciar.style.display = 'none';
-    }
-
-    // Resetar estados do jogo
     pontos = 0;
     oponenteScore = 0;
     jaPerdeu = false;
     jogoIniciado = false;
 
     telaPontos.innerHTML = pontos;
-    document.getElementById('my-score').textContent = '0';
-    document.getElementById('opponent-score').textContent = '0';
+
+    const myScoreEl = document.getElementById('my-score');
+    const opponentScoreEl = document.getElementById('opponent-score');
+    if (myScoreEl) myScoreEl.textContent = '0';
+    if (opponentScoreEl) opponentScoreEl.textContent = '0';
 
     resetarPosicaoPalavra();
     pararDvd();
 
-    // Voltar para seleção de nível
     document.getElementById('tela-jogo').style.display = 'none';
     document.getElementById('tela-nivel').style.display = 'block';
+
+    $('#modal-fim-partida').modal('hide');
 }
 
 function voltarParaSelecaoNivel() {
@@ -406,13 +372,12 @@ function voltarParaSelecaoNivel() {
     pararDvd();
     inputPalavra.disabled = false;
     nivelAtual = null;
-    jogoIniciado = false; // NOVO: Resetar estado do jogo
+    jogoIniciado = false;
 }
 
 // ===== FUNÇÕES DO TIMER =====
 
 function iniciarTimer() {
-    // NOVO: Só inicia se o jogo já tiver começado
     if (!jogoIniciado) return;
 
     pararTimer();
@@ -453,8 +418,8 @@ function perderFoco() {
     if (modoMultiplayer) {
         document.getElementById('my-score').textContent = pontos;
         enviarPontuacao();
-        enviarPerdeu(); // NOVO: Informar oponente que perdeu
-        vitoriasOponente++; // Oponente ganha quando você perde
+        enviarPerdeu();
+        vitoriasOponente++;
         atualizarPlacarVitorias();
         mostrarVencedorPorDesistencia(false);
     }
@@ -499,7 +464,6 @@ function selecionarNivel(nivel, enviarParaOponente = true) {
         document.getElementById('my-score').textContent = '0';
         document.getElementById('opponent-score').textContent = '0';
 
-        // NOVO: Adicionar display de vitórias no placar
         let winsDisplay = document.getElementById('wins-display');
         if (!winsDisplay) {
             winsDisplay = document.createElement('div');
@@ -537,7 +501,7 @@ function selecionarNivel(nivel, enviarParaOponente = true) {
 function iniciar() {
     pontos = 0;
     jaPerdeu = false;
-    jogoIniciado = false; // NOVO: Jogo ainda não começou
+    jogoIniciado = false;
 
     mostrarPalavra();
     atualizarDisplayPalavra();
@@ -555,7 +519,6 @@ function iniciar() {
     pararDvd();
     resetarPosicaoPalavra();
 
-    // NOVO: Não inicia o timer automaticamente no multiplayer
     if (!modoMultiplayer) {
         iniciarTimer();
     }
@@ -602,9 +565,6 @@ function atualizarDisplayPalavra() {
 
 inputPalavra.addEventListener('input', () => {
     if (inputPalavra.value === palavraOriginal) {
-        // ACERTOU!
-
-        // NOVO: Se for a primeira palavra no multiplayer, inicia o jogo
         if (modoMultiplayer && !jogoIniciado) {
             jogoIniciado = true;
             mensagem.innerHTML = 'Correto!!';
@@ -625,7 +585,6 @@ inputPalavra.addEventListener('input', () => {
             maiorPontos.innerHTML = maiorPontuacao;
         }
 
-        // Gerenciar DVD bounce
         if (pontosDvdBounce.includes(pontos)) {
             iniciarDvd();
         } else {
@@ -633,14 +592,11 @@ inputPalavra.addEventListener('input', () => {
             resetarPosicaoPalavra();
         }
 
-        // Próxima palavra
         mostrarPalavra();
         atualizarDisplayPalavra();
 
-        // Reiniciar timer
         iniciarTimer();
 
-        // Multiplayer
         if (modoMultiplayer) {
             document.getElementById('my-score').textContent = pontos;
             enviarPontuacao();
